@@ -28,6 +28,7 @@
 #
 
 import math
+import numpy
 
 
 def encode_alt_modes(alt, bit13):
@@ -270,24 +271,8 @@ def manchester_encode(byte):
     return manchester_encoded
 
 
-###############################################################
 
-# Copyright (C) 2017-2018 Linar Yusupov
 
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import numpy
 
 def vel_heading_encode():
     #(ca,icao,ew_dir,ew_vel,ns_dir,ns_vel)
@@ -347,8 +332,23 @@ def vel_heading_encode():
     dfvel.append((dfvel_crc >> 8) & 0xff)
     dfvel.append((dfvel_crc) & 0xff)
     return dfvel
-# from scipy.signal import hilbert
 
+###############################################################
+
+# Copyright (C) 2017-2018 Linar Yusupov
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 def df17_pos_rep_encode(ca, icao, tc, ss, nicsb, alt, time, lat, lon, surface):
     format = 17
 
