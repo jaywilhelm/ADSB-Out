@@ -4,6 +4,7 @@
 ##########################################################################
 # Modification by Jay Wilhelm
 # Added Velocity packet
+# Added 8 Char Callsign
 # 2018
 #
 #
@@ -272,6 +273,110 @@ def manchester_encode(byte):
 
 
 
+"""
+Callsign and Velocity packets
+
+Author: Jay Wilelm
+Date: June 2018
+
+Messages for velocity + heading and callsign
+"""
+def typecode(msg):
+    """Type code of ADS-B message
+    Args:
+        msg (string): 28 bytes hexadecimal message string
+    Returns:
+        int: type code number
+    """
+    msgbin = hex2bin(msg)
+    return bin2int(msgbin[32:37])
+def decode_callsign(msg):
+    """Aircraft callsign
+    Args:
+        msg (string): 28 bytes hexadecimal message string
+    Returns:
+        string: callsign
+    """
+
+    if typecode(msg) < 1 or typecode(msg) > 4:
+        raise RuntimeError("%s: Not a identification message" % msg)
+
+    chars = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######'
+    msgbin = hex2bin(msg)
+    csbin = msgbin[40:96]
+
+    cs = ''
+    cs += chars[bin2int(csbin[0:6])]
+    cs += chars[bin2int(csbin[6:12])]
+    cs += chars[bin2int(csbin[12:18])]
+    cs += chars[bin2int(csbin[18:24])]
+    cs += chars[bin2int(csbin[24:30])]
+    cs += chars[bin2int(csbin[30:36])]
+    cs += chars[bin2int(csbin[36:42])]
+    cs += chars[bin2int(csbin[42:48])]
+
+    # clean string, remove spaces and marks, if any.
+    # cs = cs.replace('_', '')
+    cs = cs.replace('#', '')
+    return cs
+
+def callsign_encode(csname):
+    if len(csname) > 8 or len(csname) <= 0:
+        return null
+    csname = csname.upper()
+
+    df = 17
+    ca = 5
+    icao = 0xabcdef
+    csname = 'ABCD1234'
+    tc = 1
+    ec = 1
+
+    #df = 17
+    #ca = 5
+    #icao = 0x4840D6
+    #csname = 'KLM1023_'
+    #tc = 4
+    #ec = 0
+
+    map = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######"
+
+    dfname = []
+    dfname.append((df << 3) | ca)
+    dfname.append((icao >> 16) & 0xff)
+    dfname.append((icao >> 8) & 0xff)
+    dfname.append((icao) & 0xff)
+    #2C C3 71 C3 2C E0
+    dfname.append((tc << 3) | (ec))
+    dfname.append((0xFC & (int(map.find(csname[0])) << 2)) | (0x03 & (int(map.find(csname[1])) >> 6)))
+    dfname.append((0xF0 & (int(map.find(csname[1])) << 4)) | (0x0F & (int(map.find(csname[2])) >> 2)))
+    dfname.append((0xF0 & (int(map.find(csname[2])) << 6)) | (0x3F & (int(map.find(csname[3])) >> 0)))
+    dfname.append((0xFC & (int(map.find(csname[4])) << 2)) | (0x03 & (int(map.find(csname[5])) >> 4)))
+    dfname.append((0xF0 & (int(map.find(csname[5])) << 4)) | (0x0F & (int(map.find(csname[6])) >> 2)))
+    dfname.append((0xF0 & (int(map.find(csname[6])) << 6)) | (0x3F & (int(map.find(csname[7])) >> 0)))
+
+    #for i in range(6):
+    #    print("{0:02X}".format(dfname[i+5]))
+
+    dfname_str = "{0:02x} {1:02x} {2:02x} {3:02x} {4:02x} {5:02x} {6:02x} {7:02x} {8:02x} {9:02x} {10:02x}".format(
+        *dfname[0:11])
+    #print(dfname_str)
+    dfname_str2 = "{0:02x}{1:02x}{2:02x}{3:02x}{4:02x}{5:02x}{6:02x}{7:02x}{8:02x}{9:02x}{10:02x}".format(
+        *dfname[0:11])
+    crc_str = "%X" % bin2int(crc(dfname_str2 + "000000", encode=True))
+    #print(crc_str)
+    # print(dfvel_str), " %X" % +"000000", encode=True))
+    # , "%X" % get_parity(hex2bin(dfvel_str+"000000"), extended=True))
+    dfname_crc = bin2int(crc(dfname_str2 + "000000", encode=True))
+    dfname.append((dfname_crc >> 16) & 0xff)
+    dfname.append((dfname_crc >> 8) & 0xff)
+    dfname.append((dfname_crc) & 0xff)
+    #msg = []
+    #dfname_str = "{0:02x}{1:02x}{2:02x}{3:02x}{4:02x}{5:02x}{6:02x}{7:02x}{8:02x}{9:02x}{10:02x}".format(
+    #    *dfname[0:11])
+    #print(csname)
+    #print(decode_callsign(dfname_str))
+    return dfname
 
 
 def vel_heading_encode():
@@ -481,13 +586,16 @@ if __name__ == "__main__":
 
     from sys import argv, exit
 
+    callsign_encode("ASDF1234")
+    quit()
+
     df17_array = vel_heading_encode()
     frame_array = frame_1090es_ppm_modulate(df17_array,df17_array)
     samples_array = hackrf_raw_IQ_format(frame_array)
 
     SamplesFile = open("SamplesVel.iq8s", "wb")
     SamplesFile.write(samples_array)
-    exit(1)
+    quit()
 
     argc = len(argv)
     if argc != 5:
