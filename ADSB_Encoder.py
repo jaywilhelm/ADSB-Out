@@ -516,6 +516,25 @@ def df17_pos_rep_encode(ca, icao, tc, ss, nicsb, alt, time, lat, lon, surface):
 
     return (df17_even_bytes, df17_odd_bytes)
 
+def frame_1090es_ppm_modulate_single(dataset):
+    ppm = []
+
+    for i in range(48):  # pause
+        ppm.append(0)
+
+    ppm.append(0xA1)  # preamble
+    ppm.append(0x40)
+
+    for i in range(len(dataset)):
+        word16 = numpy.packbits(manchester_encode(~dataset[i]))
+        ppm.append(word16[0])
+        ppm.append(word16[1])
+
+    for i in range(100+14*2+2+48):  # pause
+        ppm.append(0)
+
+    return bytearray(ppm)
+
 
 def frame_1090es_ppm_modulate(even, odd):
     ppm = []
@@ -586,8 +605,12 @@ if __name__ == "__main__":
 
     from sys import argv, exit
 
-    callsign_encode("ASDF1234")
-    quit()
+    df17_array = callsign_encode("ASDF1234")
+    frame_array = frame_1090es_ppm_modulate_single(df17_array)
+    samples_array = hackrf_raw_IQ_format(frame_array)
+    SamplesFile = open("SamplesName.iq8s", "wb")
+    SamplesFile.write(samples_array)
+    #quit()
 
     df17_array = vel_heading_encode()
     frame_array = frame_1090es_ppm_modulate(df17_array,df17_array)
@@ -595,7 +618,7 @@ if __name__ == "__main__":
 
     SamplesFile = open("SamplesVel.iq8s", "wb")
     SamplesFile.write(samples_array)
-    quit()
+    #quit()
 
     argc = len(argv)
     if argc != 5:

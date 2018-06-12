@@ -1,0 +1,9 @@
+set -x
+./ADSB_Encoder.py  0xABCDEF 12.34 56.78 9999.0
+dd if=SamplesName.iq8s of=SamplesName_256k.iq8s bs=4k seek=63
+dd if=SamplesVel.iq8s of=SamplesVel_256k.iq8s bs=4k seek=63
+dd if=Samples.iq8s of=Samples_256K.iq8s bs=4k seek=63
+sudo hackrf_transfer -t Samples_256K.iq8s -f 1099000000 -s 2000000 -x 16
+sudo hackrf_transfer -t SamplesName_256k.iq8s -f 1099000000 -s 2000000 -x 16
+sudo hackrf_transfer -t SamplesVel_256k.iq8s -f 1099000000 -s 2000000 -x 16
+
