@@ -30,6 +30,7 @@
 
 import math
 import numpy
+import numpy as np
 
 
 def encode_alt_modes(alt, bit13):
@@ -320,15 +321,16 @@ def decode_callsign(msg):
     cs = cs.replace('#', '')
     return cs
 
-def callsign_encode(csname):
+def callsign_encode(icao, csname):
     if len(csname) > 8 or len(csname) <= 0:
+        print ("Name length error")
         return null
     csname = csname.upper()
 
     df = 17
     ca = 5
-    icao = 0xabcdef
-    csname = 'ABCD1234'
+    #icao = 0xabcdef
+    #csname = 'ABCD1234'
     tc = 1
     ec = 1
 
@@ -379,7 +381,7 @@ def callsign_encode(csname):
     return dfname
 
 
-def vel_heading_encode():
+def vel_heading_encode(icao,in_velocity,in_heading_deg,vertical_rate):
     #(ca,icao,ew_dir,ew_vel,ns_dir,ns_vel)
     df = 17
     ca = 5
@@ -389,6 +391,31 @@ def vel_heading_encode():
     #9-32   ICAO
     #33-88  DATA -> 33-87 w/ 33-37 TC
     #89-112 Parity
+    in_heading_rad = np.deg2rad(in_heading_deg)
+    V_EW = in_velocity*np.sin(in_heading_rad)
+    V_NS = in_velocity*np.cos(in_heading_rad)
+
+    quadrant = np.floor(in_heading_deg / 90)
+
+    if(quadrant == 0):
+        V_EW = 1
+        V_NS = 1
+    elif(quadrant == 1):
+        V_EW = 0
+        V_NS = 1
+    elif(quadrant == 2):
+        V_EW = 0
+        V_NS = 0
+    else:
+        V_EW = 1
+        V_NS = 0
+
+    S_Vr = 1
+    Vr = int(vertical_rate)
+
+    if(vertical_rate < 0):
+        Vr = -Vr
+        S_Vr = 0
 
     tc = 19     #33-37  1-5 type code
     st = 0x01   #38-40  6-8 subtype, 3 air, 1 ground speed
@@ -396,12 +423,12 @@ def vel_heading_encode():
     resv_a = 0#1  #42     10
     NAC = 2#0     #43-45  11-13 velocity uncertainty
     S_EW = 1#1    #46     14
-    V_EW = 97#9    #47-56  15-24
+    #V_EW = 97#9    #47-56  15-24
     S_NS = 0#1    #57     25 north-south sign
-    V_NS = 379#0xA0 #58-67  26-35 160 north-south vel
+    #V_NS = 379#0xA0 #58-67  26-35 160 north-south vel
     VrSrc = 1#0   #68     36 vertical rate source
-    S_Vr = 1#1    #69     37 vertical rate sign
-    Vr = 41#0x0E   #70-78  38-46 14 vertical rate
+    #S_Vr = 1#1    #69     37 vertical rate sign
+    #Vr = 41#0x0E   #70-78  38-46 14 vertical rate
     RESV_B = 0  #79-80  47-48
     S_Dif = 0   #81     49 diff from baro alt, sign
     Dif = 0x1c#0x17  #82-88  50-66 23 diff from baro alt
@@ -605,30 +632,12 @@ if __name__ == "__main__":
 
     from sys import argv, exit
 
-    df17_array = callsign_encode("ASDF1234")
-    frame_array = frame_1090es_ppm_modulate_single(df17_array)
-    samples_array = hackrf_raw_IQ_format(frame_array)
-    SamplesFile = open("SamplesName.iq8s", "wb")
-    SamplesFile.write(samples_array)
-    #quit()
-
-    df17_array = vel_heading_encode()
-    frame_array = frame_1090es_ppm_modulate(df17_array,df17_array)
-    samples_array = hackrf_raw_IQ_format(frame_array)
-
-    SamplesFile = open("SamplesVel.iq8s", "wb")
-    SamplesFile.write(samples_array)
-    #quit()
-
+    print ("Welcome to ADSB-Out, 2018")
     argc = len(argv)
-    if argc != 5:
-        print
-        print
-        'Usage: ' + argv[0] + '  <ICAO> <Latitude> <Longtitude> <Altitude>'
-        print
-        print
-        '    Example: ' + argv[0] + '  0xABCDEF 12.34 56.78 9999.0'
-        print
+    if argc != 9:
+        print('Usage: ' + argv[0] + '  <ICAO> <Latitude> <Longtitude> <Altitude> <FlightName> <HeadingDeg> <Velocity> <VerticalRate>')
+        print('    Example: ' + argv[0] + '  0xABCDEF 12.34 56.78 9999.0')
+        print(argc)
         exit(2)
 
 
@@ -638,6 +647,27 @@ if __name__ == "__main__":
     lat = float(argv[2])
     lon = float(argv[3])
     alt = float(argv[4])
+    fname = argv[5]
+    heading = float(argv[6])
+    velocity = float(argv[7])
+    vertical_rate = float(argv[8])
+
+    df17_array = callsign_encode(icao,"ASDF1234")
+    frame_array = frame_1090es_ppm_modulate_single(df17_array)
+    samples_array = hackrf_raw_IQ_format(frame_array)
+    SamplesFile = open("SamplesName.iq8s", "wb")
+    SamplesFile.write(samples_array)
+
+    df17_array = vel_heading_encode(icao,heading,velocity,vertical_rate)
+    frame_array = frame_1090es_ppm_modulate(df17_array, df17_array)
+    samples_array = hackrf_raw_IQ_format(frame_array)
+
+    SamplesFile = open("SamplesVel.iq8s", "wb")
+    SamplesFile.write(samples_array)
+
+
+
+
 
     ca = 5
     tc = 11
